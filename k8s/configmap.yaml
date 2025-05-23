@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llm-chatbot-config
+  namespace: default
+  labels:
+    app: llm-chatbot
+data:
+  # LLM Configuration
+  model_type: "ollama"
+  model_name: "phi"
+  
+  # Ollama Base URL - using host machine IP accessible from minikube
+  llm_base_url: "http://192.168.49.1:11434"
+  
+  # Application Configuration
+  log_level: "INFO"
+  max_connections: "100"
+  connection_timeout: "30"
+  
+  # Feature Flags
+  enable_websockets: "true"
+  enable_metrics: "true"
+  enable_health_checks: "true"
+  
+  # Performance Settings
+  worker_processes: "1"
+  max_requests_per_worker: "1000"
+  keep_alive_timeout: "65" 
