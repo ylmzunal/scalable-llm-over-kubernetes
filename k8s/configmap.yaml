@@ -6,12 +6,15 @@ metadata:
   labels:
     app: llm-chatbot
 data:
-  # LLM Configuration
-  model_type: "ollama"
-  model_name: "phi"
+  # LLM Configuration - Multi-Provider Support
+  model_provider: "ollama"  # ollama, huggingface, mock
+  model_name: "phi"         # Model name within the provider
   
-  # Ollama Base URL - using host machine IP accessible from minikube
-  llm_base_url: "http://192.168.49.1:11434"
+  # Ollama Configuration (Local Models)
+  llm_base_url: "http://192.168.0.156:11434"
+  
+  # Hugging Face Configuration (Free API)
+  # HF_API_TOKEN can be set as secret for higher rate limits (optional)
   
   # Application Configuration
   log_level: "INFO"
@@ -22,8 +25,24 @@ data:
   enable_websockets: "true"
   enable_metrics: "true"
   enable_health_checks: "true"
+  enable_model_switching: "true"
   
   # Performance Settings
   worker_processes: "1"
   max_requests_per_worker: "1000"
-  keep_alive_timeout: "65" 
+  keep_alive_timeout: "65"
+
+---
+# Optional: Secret for Hugging Face API token (for higher rate limits)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: llm-chatbot-secrets
+  namespace: default
+  labels:
+    app: llm-chatbot
+type: Opaque
+data:
+  # Base64 encoded values
+  # To create: echo -n "your_hf_token" | base64
+  hf_api_token: ""  # Optional: Add your HF token here for higher rate limits 

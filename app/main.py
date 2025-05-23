@@ -7,6 +7,7 @@ import os
 from typing import List
 import asyncio
 from datetime import datetime
+from pydantic import BaseModel
 
 from .models import ChatMessage, ChatResponse
 from .llm_service import LLMService
@@ -18,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Scalable LLM Chatbot",
-    description="A scalable chatbot service powered by LLM on Kubernetes",
-    version="1.0.0"
+    description="A scalable chatbot service powered by multiple LLM providers on Kubernetes",
+    version="2.0.0"
 )
 
 # CORS middleware for frontend integration
@@ -34,6 +35,17 @@ app.add_middleware(
 # Initialize services
 llm_service = LLMService()
 connection_manager = ConnectionManager()
+
+# New models for model management
+class ModelSwitchRequest(BaseModel):
+    provider: str
+    model_name: str
+
+class ModelSwitchResponse(BaseModel):
+    success: bool
+    message: str
+    current_provider: str
+    current_model: str
 
 @app.on_event("startup")
 async def startup_event():
@@ -52,10 +64,11 @@ async def shutdown_event():
 async def read_root():
     """Health check endpoint"""
     return {
-        "service": "LLM Chatbot",
+        "service": "Multi-Model LLM Chatbot",
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "version": "1.0.0"
+        "version": "2.0.0",
+        "current_model": llm_service.current_model_info
     }
 
 @app.get("/health")
@@ -71,6 +84,64 @@ async def health_check():
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
+
+@app.get("/models")
+async def get_available_models():
+    """Get list of available models and current model info"""
+    try:
+        models_info = await llm_service.get_available_models()
+        return {
+            "available_models": models_info,
+            "description": "Free models available for selection",
+            "providers": {
+                "ollama": "Local models running on your machine (privacy-focused)",
+                "huggingface": "Free Hugging Face Inference API models"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to get available models: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching models: {str(e)}")
+
+@app.post("/models/switch", response_model=ModelSwitchResponse)
+async def switch_model(request: ModelSwitchRequest):
+    """Switch to a different model"""
+    try:
+        success = await llm_service.switch_model(request.provider, request.model_name)
+        
+        current_model_info = llm_service.current_model_info or {}
+        
+        if success:
+            return ModelSwitchResponse(
+                success=True,
+                message=f"Successfully switched to {request.provider}:{request.model_name}",
+                current_provider=llm_service.model_provider,
+                current_model=current_model_info.get("display_name", request.model_name)
+            )
+        else:
+            return ModelSwitchResponse(
+                success=False,
+                message=f"Failed to switch to {request.provider}:{request.model_name}",
+                current_provider=llm_service.model_provider,
+                current_model=current_model_info.get("display_name", "Unknown")
+            )
+            
+    except Exception as e:
+        logger.error(f"Model switch error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error switching model: {str(e)}")
+
+@app.get("/models/current")
+async def get_current_model():
+    """Get current model information"""
+    return {
+        "provider": llm_service.model_provider,
+        "model_name": llm_service.model_name,
+        "model_info": llm_service.current_model_info,
+        "status": {
+            "loaded": llm_service.model_loaded,
+            "initialized": llm_service.is_initialized,
+            "last_health_check": llm_service.last_health_check.isoformat() if llm_service.last_health_check else None
+        }
+    }
 
 @app.get("/metrics")
 async def get_metrics():

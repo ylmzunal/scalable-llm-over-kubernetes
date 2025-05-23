@@ -15,7 +15,20 @@ import {
   IconButton,
   Divider,
   Card,
-  CardContent
+  CardContent,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Tooltip
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -23,7 +36,10 @@ import {
   Person as PersonIcon,
   CloudQueue as CloudIcon,
   Speed as SpeedIcon,
-  Computer as ComputerIcon
+  Computer as ComputerIcon,
+  Settings as SettingsIcon,
+  Memory as MemoryIcon,
+  Cloud as CloudAltIcon
 } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -60,6 +76,10 @@ function App() {
   const [conversationId] = useState(uuidv4());
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
+  const [availableModels, setAvailableModels] = useState(null);
+  const [currentModel, setCurrentModel] = useState(null);
+  const [modelDialogOpen, setModelDialogOpen] = useState(false);
+  const [modelSwitching, setModelSwitching] = useState(false);
   const messagesEndRef = useRef(null);
   const wsRef = useRef(null);
 
@@ -73,8 +93,10 @@ function App() {
     // Initialize WebSocket connection
     initializeWebSocket();
     
-    // Fetch initial stats
+    // Fetch initial data
     fetchStats();
+    fetchAvailableModels();
+    fetchCurrentModel();
     
     // Cleanup on unmount
     return () => {
@@ -147,6 +169,75 @@ function App() {
     }
   };
 
+  const fetchAvailableModels = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/models`);
+      setAvailableModels(response.data);
+    } catch (error) {
+      console.error('Failed to fetch available models:', error);
+    }
+  };
+
+  const fetchCurrentModel = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/models/current`);
+      setCurrentModel(response.data);
+    } catch (error) {
+      console.error('Failed to fetch current model:', error);
+    }
+  };
+
+  const switchModel = async (provider, modelName) => {
+    setModelSwitching(true);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/models/switch`, {
+        provider: provider,
+        model_name: modelName
+      });
+      
+      if (response.data.success) {
+        setError(null);
+        await fetchCurrentModel(); // Refresh current model info
+        setMessages(prev => [...prev, {
+          id: uuidv4(),
+          text: `🔄 Switched to ${response.data.current_model}`,
+          sender: 'system',
+          timestamp: new Date().toISOString()
+        }]);
+      } else {
+        setError(`Failed to switch model: ${response.data.message}`);
+      }
+    } catch (error) {
+      setError('Failed to switch model. Please try again.');
+      console.error('Model switch error:', error);
+    } finally {
+      setModelSwitching(false);
+      setModelDialogOpen(false);
+    }
+  };
+
+  const getProviderIcon = (provider) => {
+    switch (provider) {
+      case 'ollama':
+        return <ComputerIcon />;
+      case 'huggingface':
+        return <CloudAltIcon />;
+      default:
+        return <MemoryIcon />;
+    }
+  };
+
+  const getProviderColor = (provider) => {
+    switch (provider) {
+      case 'ollama':
+        return 'success';
+      case 'huggingface':
+        return 'info';
+      default:
+        return 'default';
+    }
+  };
+
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
 
@@ -207,9 +298,29 @@ function App() {
           <Toolbar>
             <BotIcon sx={{ mr: 2 }} />
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              Scalable LLM Chatbot - Kubernetes Demo
+              Multi-Model LLM Chatbot - Kubernetes Demo
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              {currentModel && (
+                <Tooltip title={`${currentModel.provider}: ${currentModel.model_info?.display_name || currentModel.model_name}`}>
+                  <Chip
+                    icon={getProviderIcon(currentModel.provider)}
+                    label={`${currentModel.model_info?.display_name || currentModel.model_name}`}
+                    color={getProviderColor(currentModel.provider)}
+                    size="small"
+                    variant="outlined"
+                    sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }}
+                  />
+                </Tooltip>
+              )}
+              <IconButton 
+                color="inherit" 
+                onClick={() => setModelDialogOpen(true)}
+                disabled={modelSwitching}
+                size="small"
+              >
+                <SettingsIcon />
+              </IconButton>
               <Chip
                 icon={<CloudIcon />}
                 label={connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}
@@ -297,7 +408,7 @@ function App() {
                   key={message.id}
                   sx={{
                     display: 'flex',
-                    justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start',
+                    justifyContent: message.sender === 'user' ? 'flex-end' : message.sender === 'system' ? 'center' : 'flex-start',
                     alignItems: 'flex-start',
                     gap: 1
                   }}
@@ -311,9 +422,11 @@ function App() {
                   <Paper
                     sx={{
                       p: 2,
-                      maxWidth: '70%',
-                      bgcolor: message.sender === 'user' ? 'primary.main' : 'grey.100',
-                      color: message.sender === 'user' ? 'white' : 'text.primary',
+                      maxWidth: message.sender === 'system' ? '90%' : '70%',
+                      bgcolor: message.sender === 'user' ? 'primary.main' : 
+                               message.sender === 'system' ? 'info.light' : 'grey.100',
+                      color: message.sender === 'user' || message.sender === 'system' ? 'white' : 'text.primary',
+                      textAlign: message.sender === 'system' ? 'center' : 'left',
                     }}
                   >
                     <Typography variant="body1">
@@ -386,6 +499,109 @@ function App() {
             </Box>
           </Paper>
         </Container>
+
+        {/* Model Selection Dialog */}
+        <Dialog 
+          open={modelDialogOpen} 
+          onClose={() => setModelDialogOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <SettingsIcon />
+              Select AI Model
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            {availableModels && (
+              <Box sx={{ mt: 1 }}>
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  Choose from free AI models. Local models (Ollama) run on your machine for privacy, 
+                  while Hugging Face models use free cloud API.
+                </Alert>
+                
+                <Typography variant="h6" gutterBottom>
+                  🖥️ Local Models (Ollama) - Privacy Focused
+                </Typography>
+                <List dense>
+                  {availableModels.available_models.ollama.map((model) => (
+                    <ListItem 
+                      key={model.name}
+                      button
+                      onClick={() => switchModel('ollama', model.name)}
+                      disabled={modelSwitching || (currentModel?.provider === 'ollama' && currentModel?.model_name === model.name)}
+                      sx={{ 
+                        border: 1, 
+                        borderColor: 'divider', 
+                        borderRadius: 1, 
+                        mb: 1,
+                        bgcolor: (currentModel?.provider === 'ollama' && currentModel?.model_name === model.name) ? 'action.selected' : 'inherit'
+                      }}
+                    >
+                      <ListItemIcon>
+                        <ComputerIcon color="success" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={model.display_name}
+                        secondary={`Size: ${model.size} | Runs locally on your machine`}
+                      />
+                      {(currentModel?.provider === 'ollama' && currentModel?.model_name === model.name) && (
+                        <Chip label="Current" color="success" size="small" />
+                      )}
+                    </ListItem>
+                  ))}
+                </List>
+
+                <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+                  ☁️ Cloud Models (Hugging Face) - Free API
+                </Typography>
+                <List dense>
+                  {availableModels.available_models.huggingface.map((model) => (
+                    <ListItem 
+                      key={model.name}
+                      button
+                      onClick={() => switchModel('huggingface', model.name)}
+                      disabled={modelSwitching || (currentModel?.provider === 'huggingface' && currentModel?.model_name === model.name)}
+                      sx={{ 
+                        border: 1, 
+                        borderColor: 'divider', 
+                        borderRadius: 1, 
+                        mb: 1,
+                        bgcolor: (currentModel?.provider === 'huggingface' && currentModel?.model_name === model.name) ? 'action.selected' : 'inherit'
+                      }}
+                    >
+                      <ListItemIcon>
+                        <CloudAltIcon color="info" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={model.display_name}
+                        secondary={`Size: ${model.size} | Free Hugging Face API`}
+                      />
+                      {(currentModel?.provider === 'huggingface' && currentModel?.model_name === model.name) && (
+                        <Chip label="Current" color="info" size="small" />
+                      )}
+                    </ListItem>
+                  ))}
+                </List>
+
+                {modelSwitching && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                    <CircularProgress size={24} />
+                    <Typography variant="body2" sx={{ ml: 1 }}>
+                      Switching model...
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setModelDialogOpen(false)} disabled={modelSwitching}>
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </ThemeProvider>
   );

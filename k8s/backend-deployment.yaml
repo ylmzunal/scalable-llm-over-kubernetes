@@ -36,7 +36,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: backend
-        image: llm-chatbot-backend:latest
+        image: llm-chatbot-backend:v2.1
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
@@ -47,11 +47,11 @@ spec:
           value: "kubernetes"
         - name: PORT
           value: "8000"
-        - name: LLM_MODEL_TYPE
+        - name: LLM_MODEL_PROVIDER
           valueFrom:
             configMapKeyRef:
               name: llm-chatbot-config
-              key: model_type
+              key: model_provider
         - name: LLM_MODEL_NAME
           valueFrom:
             configMapKeyRef:
@@ -74,12 +74,12 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        # Optional: OpenAI API key from secret
-        - name: OPENAI_API_KEY
+        # Optional: Hugging Face API token from secret
+        - name: HF_API_TOKEN
           valueFrom:
             secretKeyRef:
               name: llm-chatbot-secrets
-              key: openai_api_key
+              key: hf_api_token
               optional: true
         resources:
           requests:
