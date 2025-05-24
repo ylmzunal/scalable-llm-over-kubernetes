@@ -33,6 +33,10 @@ jobs:
     - name: 'Set up Cloud SDK'
       uses: 'google-github-actions/setup-gcloud@v2'
 
+    - name: 'Install GKE gcloud auth plugin'
+      run: |-
+        gcloud components install gke-gcloud-auth-plugin
+
     - name: 'Use gcloud CLI'
       run: 'gcloud info'
 
@@ -75,9 +79,9 @@ jobs:
         # Apply cloud-specific configurations
         kubectl apply -f k8s/configmap-cloud.yaml
         
-        # Create secrets if they don't exist
+        # Create secrets if they don't exist (currently empty for Ollama deployment)
         kubectl create secret generic llm-chatbot-secrets \
-          --from-literal=hf_api_token="${{ secrets.HF_API_TOKEN }}" \
+          --from-literal=placeholder="none" \
           --dry-run=client -o yaml | kubectl apply -f -
         
         # Update cloud deployment with correct image
@@ -115,6 +119,10 @@ jobs:
     - name: 'Set up Cloud SDK'
       uses: 'google-github-actions/setup-gcloud@v2'
 
+    - name: 'Install GKE gcloud auth plugin'
+      run: |-
+        gcloud components install gke-gcloud-auth-plugin
+
     - name: Get GKE credentials
       run: |-
         gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
@@ -148,6 +156,10 @@ jobs:
 
     - name: 'Set up Cloud SDK'
       uses: 'google-github-actions/setup-gcloud@v2'
+
+    - name: 'Install GKE gcloud auth plugin'
+      run: |-
+        gcloud components install gke-gcloud-auth-plugin
 
     - name: Rollback on failure
       run: |-

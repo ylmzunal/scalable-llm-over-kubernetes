@@ -9,7 +9,7 @@ metadata:
     version: v1
     environment: cloud
 spec:
-  replicas: 2
+  replicas: 1  # Reduced to 1 for Ollama resource requirements
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -33,10 +33,75 @@ spec:
     spec:
       serviceAccountName: llm-chatbot-service-account
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
+        runAsNonRoot: false  # Ollama needs root access
         fsGroup: 1000
+      initContainers:
+      # Download models before starting main containers
+      - name: model-downloader
+        image: ollama/ollama:latest
+        command: 
+        - /bin/sh
+        - -c
+        - |
+          ollama serve &
+          sleep 10
+          echo "Downloading phi model..."
+          ollama pull phi
+          echo "Downloading llama2:7b model..."
+          ollama pull llama2:7b
+          echo "Model download complete"
+          pkill ollama
+        volumeMounts:
+        - name: ollama-data
+          mountPath: /root/.ollama
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
       containers:
+      # Ollama sidecar container
+      - name: ollama
+        image: ollama/ollama:latest
+        ports:
+        - containerPort: 11434
+          name: ollama-http
+        env:
+        - name: OLLAMA_HOST
+          value: "0.0.0.0"
+        volumeMounts:
+        - name: ollama-data
+          mountPath: /root/.ollama
+        resources:
+          requests:
+            memory: "2Gi"     # Increased for model storage
+            cpu: "1000m"      # Increased for model inference
+          limits:
+            memory: "4Gi"     # Increased for model storage
+            cpu: "2000m"      # Increased for model inference
+        livenessProbe:
+          httpGet:
+            path: /api/version
+            port: ollama-http
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/version
+            port: ollama-http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+      # Main application container
       - name: backend
         image: gcr.io/PROJECT_ID/llm-chatbot-backend:latest
         imagePullPolicy: Always  # Always pull latest for cloud
@@ -50,20 +115,11 @@ spec:
         - name: PORT
           value: "8000"
         - name: LLM_MODEL_PROVIDER
-          valueFrom:
-            configMapKeyRef:
-              name: llm-chatbot-config
-              key: model_provider
+          value: "ollama"  # Use Ollama in cloud
         - name: LLM_MODEL_NAME
-          valueFrom:
-            configMapKeyRef:
-              name: llm-chatbot-config
-              key: model_name
+          value: "phi"     # Default to phi model
         - name: LLM_BASE_URL
-          valueFrom:
-            configMapKeyRef:
-              name: llm-chatbot-config
-              key: llm_base_url
+          value: "http://localhost:11434"  # Ollama sidecar
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -76,25 +132,18 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        # Hugging Face API token from secret (recommended for cloud)
-        - name: HF_API_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: llm-chatbot-secrets
-              key: hf_api_token
-              optional: true
         resources:
           requests:
-            memory: "128Mi"  # Reduced for free tier
-            cpu: "100m"      # Reduced for free tier
+            memory: "256Mi"   # Increased for LLM processing
+            cpu: "200m"       # Increased for LLM processing
           limits:
-            memory: "256Mi"  # Reduced for free tier
-            cpu: "250m"      # Reduced for free tier
+            memory: "512Mi"   # Increased for LLM processing
+            cpu: "500m"       # Increased for LLM processing
         livenessProbe:
           httpGet:
             path: /health
             port: http
-          initialDelaySeconds: 45  # Longer for cloud startup
+          initialDelaySeconds: 120  # Longer for model loading
           periodSeconds: 30
           timeoutSeconds: 10
           failureThreshold: 3
@@ -102,19 +151,19 @@ spec:
           httpGet:
             path: /health
             port: http
-          initialDelaySeconds: 15
+          initialDelaySeconds: 60   # Longer for model loading
           periodSeconds: 10
           timeoutSeconds: 5
           successThreshold: 1
-          failureThreshold: 3
+          failureThreshold: 5
         startupProbe:
           httpGet:
             path: /health
             port: http
-          initialDelaySeconds: 15
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 45  # Longer for cloud startup
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 20  # Much longer for model loading
         volumeMounts:
         - name: app-logs
           mountPath: /app/logs
@@ -127,5 +176,8 @@ spec:
       volumes:
       - name: app-logs
         emptyDir: {}
-      terminationGracePeriodSeconds: 30
+      - name: ollama-data
+        emptyDir:
+          sizeLimit: 10Gi  # Space for models
+      terminationGracePeriodSeconds: 60  # Longer for graceful model shutdown
       restartPolicy: Always 

@@ -5,9 +5,7 @@ httpx==0.25.2
 websockets==12.0
 python-multipart==0.0.6
 
-# Optional dependencies for different LLM integrations
-openai==1.3.8
-# For local model support (Ollama)
+# For local model support (Ollama) and cloud APIs
 requests==2.31.0
 
 # Development and testing

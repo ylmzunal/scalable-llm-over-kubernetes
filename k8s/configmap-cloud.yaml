@@ -7,15 +7,16 @@ metadata:
     app: llm-chatbot
     environment: cloud
 data:
-  # LLM Configuration - Cloud Deployment (Hugging Face)
-  model_provider: "huggingface"  # huggingface for cloud deployment
-  model_name: "microsoft/DialoGPT-medium"  # Free Hugging Face model for chat
+  # LLM Configuration - Cloud Deployment (Local Ollama Models)
+  model_provider: "ollama"  # ollama for cloud deployment with local models
+  model_name: "phi"         # Fast phi model for cloud deployment
   
-  # Ollama Configuration (Not used in cloud)
-  llm_base_url: ""
+  # Ollama Configuration (Sidecar container)
+  llm_base_url: "http://localhost:11434"
   
-  # Hugging Face Configuration (Free API)
-  # HF_API_TOKEN can be set as secret for higher rate limits (optional)
+  # Local Models Available in Cloud:
+  # - phi (2.7B) - Fast and efficient
+  # - llama2:7b (7B) - More capable but slower
   
   # Application Configuration
   log_level: "INFO"
@@ -28,13 +29,13 @@ data:
   enable_health_checks: "true"
   enable_model_switching: "false"  # Disabled in cloud
   
-  # Performance Settings - Optimized for Cloud
+  # Performance Settings - Optimized for Cloud with Ollama
   worker_processes: "1"
-  max_requests_per_worker: "500"  # Reduced for stability
+  max_requests_per_worker: "200"  # Reduced for Ollama resource constraints
   keep_alive_timeout: "65"
 
 ---
-# Secret for Hugging Face API token (optional but recommended for cloud)
+# Secret for optional configurations
 apiVersion: v1
 kind: Secret
 metadata:
@@ -45,6 +46,5 @@ metadata:
     environment: cloud
 type: Opaque
 data:
-  # Base64 encoded values
-  # To create: echo -n "your_hf_token" | base64
-  hf_api_token: ""  # Add your HF token here for higher rate limits 
+  # Currently no secrets needed for Ollama deployment
+  # Future use for API keys or certificates 
