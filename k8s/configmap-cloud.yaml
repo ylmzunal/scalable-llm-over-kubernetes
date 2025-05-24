@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llm-chatbot-config
+  namespace: default
+  labels:
+    app: llm-chatbot
+    environment: cloud
+data:
+  # LLM Configuration - Cloud Deployment (Hugging Face)
+  model_provider: "huggingface"  # huggingface for cloud deployment
+  model_name: "microsoft/DialoGPT-medium"  # Free Hugging Face model for chat
+  
+  # Ollama Configuration (Not used in cloud)
+  llm_base_url: ""
+  
+  # Hugging Face Configuration (Free API)
+  # HF_API_TOKEN can be set as secret for higher rate limits (optional)
+  
+  # Application Configuration
+  log_level: "INFO"
+  max_connections: "50"  # Reduced for cloud limits
+  connection_timeout: "30"
+  
+  # Feature Flags
+  enable_websockets: "true"
+  enable_metrics: "true"
+  enable_health_checks: "true"
+  enable_model_switching: "false"  # Disabled in cloud
+  
+  # Performance Settings - Optimized for Cloud
+  worker_processes: "1"
+  max_requests_per_worker: "500"  # Reduced for stability
+  keep_alive_timeout: "65"
+
+---
+# Secret for Hugging Face API token (optional but recommended for cloud)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: llm-chatbot-secrets
+  namespace: default
+  labels:
+    app: llm-chatbot
+    environment: cloud
+type: Opaque
+data:
+  # Base64 encoded values
+  # To create: echo -n "your_hf_token" | base64
+  hf_api_token: ""  # Add your HF token here for higher rate limits 

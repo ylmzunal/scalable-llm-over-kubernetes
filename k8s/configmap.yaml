@@ -11,7 +11,7 @@ data:
   model_name: "phi"         # Model name within the provider
   
   # Ollama Configuration (Local Models)
-  llm_base_url: "http://192.168.0.156:11434"
+  llm_base_url: "http://host.minikube.internal:11434"
   
   # Hugging Face Configuration (Free API)
   # HF_API_TOKEN can be set as secret for higher rate limits (optional)

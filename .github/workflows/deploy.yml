@@ -71,24 +71,33 @@ jobs:
       run: |-
         # Apply basic resources first
         kubectl apply -f k8s/rbac.yaml
-        kubectl apply -f k8s/configmap.yaml
+        
+        # Apply cloud-specific configurations
+        kubectl apply -f k8s/configmap-cloud.yaml
         
         # Create secrets if they don't exist
         kubectl create secret generic llm-chatbot-secrets \
-          --from-literal=openai_api_key="${{ secrets.OPENAI_API_KEY }}" \
+          --from-literal=hf_api_token="${{ secrets.HF_API_TOKEN }}" \
           --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Update cloud deployment with correct image
+        sed "s/PROJECT_ID/$PROJECT_ID/g" k8s/backend-deployment-cloud.yaml > /tmp/deployment.yaml
+        kubectl apply -f /tmp/deployment.yaml
         
         # Update the deployment image
         kubectl set image deployment/$DEPLOYMENT_NAME backend=gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA
         
-        # Apply other resources
-        kubectl apply -f k8s/backend-service.yaml
-        kubectl apply -f k8s/backend-deployment.yaml
-        kubectl apply -f k8s/hpa.yaml
+        # Apply cloud-specific services and HPA
+        kubectl apply -f k8s/backend-service-cloud.yaml
+        kubectl apply -f k8s/hpa-cloud.yaml
         
         # Verify deployment
         kubectl rollout status deployment/$DEPLOYMENT_NAME
         kubectl get services -o wide
+        
+        # Get external IP
+        echo "Waiting for external IP..."
+        kubectl get service llm-chatbot-backend-service --watch --timeout=300s
 
   test-deployment:
     name: Test Deployment

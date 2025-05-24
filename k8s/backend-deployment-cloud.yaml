@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-chatbot-backend
+  namespace: default
+  labels:
+    app: llm-chatbot
+    component: backend
+    version: v1
+    environment: cloud
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: llm-chatbot
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: llm-chatbot
+        component: backend
+        version: v1
+        environment: cloud
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: llm-chatbot-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: backend
+        image: gcr.io/PROJECT_ID/llm-chatbot-backend:latest
+        imagePullPolicy: Always  # Always pull latest for cloud
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "cloud"
+        - name: PORT
+          value: "8000"
+        - name: LLM_MODEL_PROVIDER
+          valueFrom:
+            configMapKeyRef:
+              name: llm-chatbot-config
+              key: model_provider
+        - name: LLM_MODEL_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: llm-chatbot-config
+              key: model_name
+        - name: LLM_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: llm-chatbot-config
+              key: llm_base_url
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        # Hugging Face API token from secret (recommended for cloud)
+        - name: HF_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: llm-chatbot-secrets
+              key: hf_api_token
+              optional: true
+        resources:
+          requests:
+            memory: "128Mi"  # Reduced for free tier
+            cpu: "100m"      # Reduced for free tier
+          limits:
+            memory: "256Mi"  # Reduced for free tier
+            cpu: "250m"      # Reduced for free tier
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 45  # Longer for cloud startup
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 45  # Longer for cloud startup
+        volumeMounts:
+        - name: app-logs
+          mountPath: /app/logs
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: app-logs
+        emptyDir: {}
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always 

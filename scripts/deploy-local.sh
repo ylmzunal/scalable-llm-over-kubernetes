@@ -53,9 +53,9 @@ print_success "Backend image built successfully"
 # Apply Kubernetes manifests
 print_status "Applying Kubernetes manifests..."
 
-# Apply in order
+# Apply in order - using local configurations
 kubectl apply -f k8s/rbac.yaml
-kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/configmap-local.yaml
 kubectl apply -f k8s/backend-service.yaml
 kubectl apply -f k8s/backend-deployment.yaml
 
