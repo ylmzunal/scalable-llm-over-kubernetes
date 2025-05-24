@@ -37,9 +37,9 @@ jobs:
       run: 'gcloud info'
 
     # Configure Docker to use the gcloud command-line tool as a credential helper
-    - name: Configure Docker for GCP
+    - name: Configure Docker for Artifact Registry
       run: |-
-        gcloud --quiet auth configure-docker
+        gcloud --quiet auth configure-docker us-central1-docker.pkg.dev
 
     # Get the GKE credentials so we can deploy to the cluster
     - name: Get GKE credentials
@@ -50,15 +50,15 @@ jobs:
     - name: Build Docker image
       run: |-
         docker build \
-          --tag "gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA" \
-          --tag "gcr.io/$PROJECT_ID/$IMAGE:latest" \
+          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$IMAGE:$GITHUB_SHA" \
+          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$IMAGE:latest" \
           .
 
-    # Push the Docker image to Google Container Registry
+    # Push the Docker image to Google Artifact Registry
     - name: Publish Docker image
       run: |-
-        docker push "gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA"
-        docker push "gcr.io/$PROJECT_ID/$IMAGE:latest"
+        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$IMAGE:$GITHUB_SHA"
+        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$IMAGE:latest"
 
     # Set up kustomize
     - name: Set up Kustomize
@@ -81,11 +81,8 @@ jobs:
           --dry-run=client -o yaml | kubectl apply -f -
         
         # Update cloud deployment with correct image
-        sed "s/PROJECT_ID/$PROJECT_ID/g" k8s/backend-deployment-cloud.yaml > /tmp/deployment.yaml
+        sed "s|gcr.io/PROJECT_ID/llm-chatbot-backend:latest|us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$IMAGE:$GITHUB_SHA|g" k8s/backend-deployment-cloud.yaml > /tmp/deployment.yaml
         kubectl apply -f /tmp/deployment.yaml
-        
-        # Update the deployment image
-        kubectl set image deployment/$DEPLOYMENT_NAME backend=gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA
         
         # Apply cloud-specific services and HPA
         kubectl apply -f k8s/backend-service-cloud.yaml
