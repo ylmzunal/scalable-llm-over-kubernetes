@@ -9,26 +9,26 @@ ENV OLLAMA_MODELS=/root/.ollama/models
 RUN mkdir -p /root/.ollama/models && \
     chmod -R 755 /root/.ollama
 
-# Download and embed the llama3.2:1b model during build (much faster than full llama3.2)
-# This ensures the model is baked into the image
+# Download and embed TinyLlama model during build (very fast and lightweight)
+# TinyLlama is only 1.1B parameters - perfect for demos
 RUN nohup ollama serve > /tmp/ollama.log 2>&1 & \
-    sleep 15 && \
-    echo "Downloading llama3.2:1b model..." && \
-    ollama pull llama3.2:1b && \
+    sleep 10 && \
+    echo "Downloading TinyLlama model..." && \
+    ollama pull tinyllama && \
     echo "Model downloaded successfully!" && \
     ollama list && \
     echo "Stopping ollama server..." && \
     pkill -f ollama && \
-    sleep 5 && \
-    echo "Model embedding complete"
+    sleep 3 && \
+    echo "TinyLlama embedding complete"
 
 # Verify the model is properly stored
 RUN ls -la /root/.ollama/models/ && \
-    echo "Model files verified in image"
+    echo "TinyLlama model files verified in image"
 
 # Expose port
 EXPOSE 11434
 
-# Start ollama server (model is already embedded)
+# Start ollama server (TinyLlama is already embedded)
 ENTRYPOINT ["/bin/ollama"]
 CMD ["serve"] 

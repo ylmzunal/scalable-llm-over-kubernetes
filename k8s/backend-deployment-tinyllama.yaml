@@ -1,20 +1,20 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: llm-embedded-cluster
+  name: llm-tinyllama-cluster
   labels:
-    name: llm-embedded-cluster
+    name: llm-tinyllama-cluster
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: llm-chatbot-backend-embedded
-  namespace: llm-embedded-cluster
+  name: llm-chatbot-backend-tinyllama
+  namespace: llm-tinyllama-cluster
   labels:
     app: llm-chatbot
     component: backend
-    model-type: "embedded"
+    model-type: "tinyllama"
 spec:
   replicas: 2
   selector:
@@ -26,7 +26,7 @@ spec:
       labels:
         app: llm-chatbot
         component: backend
-        model-type: "embedded"
+        model-type: "tinyllama"
     spec:
       containers:
       - name: backend
@@ -37,37 +37,37 @@ spec:
           name: http
         env:
         - name: ENVIRONMENT
-          value: "kubernetes-embedded"
+          value: "kubernetes-tinyllama"
         - name: PORT
           value: "8000"
         - name: LLM_MODEL_PROVIDER
           value: "ollama"
         - name: LLM_MODEL_NAME
-          value: "llama3.2:1b"
+          value: "tinyllama"
         - name: LLM_BASE_URL
           value: "http://localhost:11434"
         resources:
           requests:
-            cpu: 200m
-            memory: 512Mi
+            cpu: 100m
+            memory: 256Mi
           limits:
-            cpu: 1000m
-            memory: 2Gi
+            cpu: 500m
+            memory: 1Gi
         readinessProbe:
           httpGet:
             path: /health
             port: 8000
-          initialDelaySeconds: 30
+          initialDelaySeconds: 15
           periodSeconds: 10
         livenessProbe:
           httpGet:
             path: /health
             port: 8000
-          initialDelaySeconds: 60
+          initialDelaySeconds: 30
           periodSeconds: 30
 
-      - name: ollama-embedded
-        image: ollama-with-llama32:latest
+      - name: ollama-tinyllama
+        image: ollama-with-tinyllama:latest
         imagePullPolicy: Never
         ports:
         - containerPort: 11434
@@ -82,39 +82,39 @@ spec:
         resources:
           requests:
             cpu: 500m
-            memory: 1Gi
+            memory: 2Gi
           limits:
             cpu: 2000m
-            memory: 3Gi
+            memory: 6Gi
         readinessProbe:
           httpGet:
             path: /api/version
             port: 11434
-          initialDelaySeconds: 10
+          initialDelaySeconds: 5
           periodSeconds: 10
         livenessProbe:
           httpGet:
             path: /api/version
             port: 11434
-          initialDelaySeconds: 20
+          initialDelaySeconds: 10
           periodSeconds: 30
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: llm-chatbot-backend-service-embedded
-  namespace: llm-embedded-cluster
+  name: llm-chatbot-backend-service-tinyllama
+  namespace: llm-tinyllama-cluster
   labels:
     app: llm-chatbot
     component: backend
-    model-type: "embedded"
+    model-type: "tinyllama"
 spec:
   type: NodePort
   ports:
   - port: 80
     targetPort: 8000
-    nodePort: 30091
+    nodePort: 30093
     name: http
   selector:
     app: llm-chatbot
@@ -124,15 +124,15 @@ spec:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: llm-chatbot-backend-embedded-hpa
-  namespace: llm-embedded-cluster
+  name: llm-chatbot-backend-tinyllama-hpa
+  namespace: llm-tinyllama-cluster
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: llm-chatbot-backend-embedded
+    name: llm-chatbot-backend-tinyllama
   minReplicas: 2
-  maxReplicas: 8
+  maxReplicas: 6
   metrics:
   - type: Resource
     resource:
