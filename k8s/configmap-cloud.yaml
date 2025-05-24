@@ -7,16 +7,15 @@ metadata:
     app: llm-chatbot
     environment: cloud
 data:
-  # LLM Configuration - Cloud Deployment (Local Ollama Models)
-  model_provider: "ollama"  # ollama for cloud deployment with local models
-  model_name: "phi"         # Fast phi model for cloud deployment
+  # LLM Configuration - Cloud Deployment (Single Model for Live Demo)
+  model_provider: "huggingface"  # huggingface for fast cloud deployment
+  model_name: "microsoft/DialoGPT-medium"  # Single conversational model for live demo
   
-  # Ollama Configuration (Sidecar container)
-  llm_base_url: "http://localhost:11434"
-  
-  # Local Models Available in Cloud:
-  # - phi (2.7B) - Fast and efficient
-  # - llama2:7b (7B) - More capable but slower
+  # Hugging Face Configuration (Free API - Perfect for Live Demos)
+  # - Fast deployment (no model downloads)
+  # - Real AI responses
+  # - Internet accessible immediately
+  # - Cost effective for demo purposes
   
   # Application Configuration
   log_level: "INFO"
