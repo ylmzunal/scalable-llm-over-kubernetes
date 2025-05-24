@@ -32,15 +32,14 @@ spec:
         prometheus.io/path: "/health"
     spec:
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 101  # nginx user
+        runAsNonRoot: false  # Allow nginx to run with necessary permissions
         fsGroup: 101
       containers:
       - name: frontend
-        image: gcr.io/PROJECT_ID/llm-chatbot-frontend:latest
+        image: gcr.io/scalable-llm-chatbot/llm-chatbot-frontend:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 80
+        - containerPort: 8080
           name: http
           protocol: TCP
         env:
@@ -111,11 +110,11 @@ spec:
   type: LoadBalancer
   ports:
   - port: 80
-    targetPort: 80
+    targetPort: 8080
     protocol: TCP
     name: http
   - port: 443
-    targetPort: 80
+    targetPort: 8080
     protocol: TCP
     name: https
   selector:

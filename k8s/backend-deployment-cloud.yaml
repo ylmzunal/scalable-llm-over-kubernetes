@@ -103,7 +103,7 @@ spec:
           readOnlyRootFilesystem: false
       # Main application container
       - name: backend
-        image: gcr.io/PROJECT_ID/llm-chatbot-backend:latest
+        image: gcr.io/scalable-llm-chatbot/llm-chatbot-backend:latest
         imagePullPolicy: Always  # Always pull latest for cloud
         ports:
         - containerPort: 8000

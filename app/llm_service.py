@@ -18,6 +18,7 @@ class LLMService:
     # Available free models configuration
     AVAILABLE_MODELS = {
         "ollama": {
+            "tinyllama": {"name": "tinyllama", "display_name": "TinyLlama (Tiny)", "size": "1.1B"},
             "phi": {"name": "phi", "display_name": "Phi-2 (Microsoft)", "size": "2.7B"},
             "llama2": {"name": "llama2", "display_name": "Llama 2 (Meta)", "size": "7B"},
             "deepseek-coder": {"name": "deepseek-coder:6.7b", "display_name": "DeepSeek Coder", "size": "6.7B"},
@@ -275,7 +276,7 @@ class LLMService:
     async def _process_ollama_message(self, message: str, conversation_id: str) -> str:
         """Process message using Ollama"""
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=180.0, http2=False) as client:
                 # Get conversation context
                 context = self._get_conversation_context(conversation_id)
                 

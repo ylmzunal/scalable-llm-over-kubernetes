@@ -29,24 +29,25 @@ gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE" --pr
 
 # Build and push backend image
 echo "🏗️  Building backend Docker image..."
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 docker build \
-  --tag "$REGISTRY_URL/$PROJECT_ID/llm-chatbot-repo/$BACKEND_IMAGE:manual-$(date +%Y%m%d-%H%M%S)" \
+  --tag "$REGISTRY_URL/$PROJECT_ID/llm-chatbot-repo/$BACKEND_IMAGE:manual-$TIMESTAMP" \
   --tag "$REGISTRY_URL/$PROJECT_ID/llm-chatbot-repo/$BACKEND_IMAGE:latest" \
   .
 
 echo "📤 Pushing backend image to Artifact Registry..."
-docker push "$REGISTRY_URL/$PROJECT_ID/llm-chatbot-repo/$BACKEND_IMAGE:manual-$(date +%Y%m%d-%H%M%S)"
+docker push "$REGISTRY_URL/$PROJECT_ID/llm-chatbot-repo/$BACKEND_IMAGE:manual-$TIMESTAMP"
 docker push "$REGISTRY_URL/$PROJECT_ID/llm-chatbot-repo/$BACKEND_IMAGE:latest"
 
 # Build and push frontend image
 echo "🏗️  Building frontend Docker image..."
 docker build \
-  --tag "$REGISTRY_URL/$PROJECT_ID/llm-chatbot-repo/$FRONTEND_IMAGE:manual-$(date +%Y%m%d-%H%M%S)" \
+  --tag "$REGISTRY_URL/$PROJECT_ID/llm-chatbot-repo/$FRONTEND_IMAGE:manual-$TIMESTAMP" \
   --tag "$REGISTRY_URL/$PROJECT_ID/llm-chatbot-repo/$FRONTEND_IMAGE:latest" \
   frontend/
 
 echo "📤 Pushing frontend image to Artifact Registry..."
-docker push "$REGISTRY_URL/$PROJECT_ID/llm-chatbot-repo/$FRONTEND_IMAGE:manual-$(date +%Y%m%d-%H%M%S)"
+docker push "$REGISTRY_URL/$PROJECT_ID/llm-chatbot-repo/$FRONTEND_IMAGE:manual-$TIMESTAMP"
 docker push "$REGISTRY_URL/$PROJECT_ID/llm-chatbot-repo/$FRONTEND_IMAGE:latest"
 
 # Deploy to Kubernetes

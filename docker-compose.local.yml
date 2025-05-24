@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # Ollama service for LLM models
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-local
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - llm-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend service
+  backend:
+    build: .
+    container_name: llm-backend-local
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=local
+      - PORT=8000
+      - LLM_MODEL_PROVIDER=ollama
+      - LLM_MODEL_NAME=tinyllama
+      - LLM_BASE_URL=http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - llm-network
+    volumes:
+      - ./app:/app/app:ro  # Mount for development
+    command: ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # Frontend service
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: llm-frontend-local
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - llm-network
+
+  # Model downloader (run once)
+  model-downloader:
+    image: ollama/ollama:latest
+    container_name: model-downloader
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - llm-network
+    volumes:
+      - ollama_data:/root/.ollama
+    command: >
+      sh -c "
+        echo 'Downloading TinyLlama model...' &&
+        ollama pull tinyllama &&
+        echo 'Model download complete!'
+      "
+    profiles:
+      - setup
+
+volumes:
+  ollama_data:
+
+networks:
+  llm-network:
+    driver: bridge 
