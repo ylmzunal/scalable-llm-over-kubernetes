@@ -1,16 +1,17 @@
-# Scalable LLM Deployment on Kubernetes Infrastructure
+# Scalable LLM Chatbot - Complete Frontend + Backend Deployment
 
 ## Master's Graduation Project
 
-This project demonstrates how to deploy and scale Large Language Model (LLM) chatbots on Kubernetes infrastructure, with local development support and cloud deployment capabilities.
+This project demonstrates a **production-ready, scalable LLM chatbot** with complete frontend and backend deployment to Kubernetes. Users can access your chatbot with locally downloaded models through a public web interface.
 
 ## 🏗️ Architecture Overview
 
-- **Frontend**: React-based chat interface
-- **Backend**: FastAPI with LLM integration
-- **Infrastructure**: Kubernetes with horizontal auto-scaling
-- **Deployment**: GitHub Actions CI/CD to Google Cloud
-- **Local Development**: Minikube for local Kubernetes testing
+- **Frontend**: React + Material-UI served by nginx (publicly accessible)
+- **Backend**: FastAPI + Ollama with your local models (internal service)
+- **Models**: Your downloaded LLM models (Phi-2, Llama 2, DeepSeek Coder, etc.)
+- **Infrastructure**: Kubernetes with auto-scaling for both frontend and backend
+- **Deployment**: GitHub Actions CI/CD deploys both frontend and backend to GKE
+- **Access**: Public internet access via LoadBalancer + optional SSL
 
 ## 📋 Prerequisites
 

@@ -11,8 +11,10 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GKE_CLUSTER: llm-chatbot-cluster
   GKE_ZONE: us-central1-a
-  DEPLOYMENT_NAME: llm-chatbot-backend
-  IMAGE: llm-chatbot-backend
+  BACKEND_DEPLOYMENT_NAME: llm-chatbot-backend
+  FRONTEND_DEPLOYMENT_NAME: llm-chatbot-frontend
+  BACKEND_IMAGE: llm-chatbot-backend
+  FRONTEND_IMAGE: llm-chatbot-frontend
   
 jobs:
   setup-build-publish-deploy:
@@ -50,19 +52,33 @@ jobs:
       run: |-
         gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
 
-    # Build the Docker image
-    - name: Build Docker image
+    # Build the Backend Docker image
+    - name: Build Backend Docker image
       run: |-
         docker build \
-          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$IMAGE:$GITHUB_SHA" \
-          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$IMAGE:latest" \
+          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$BACKEND_IMAGE:$GITHUB_SHA" \
+          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$BACKEND_IMAGE:latest" \
           .
 
-    # Push the Docker image to Google Artifact Registry
-    - name: Publish Docker image
+    # Build the Frontend Docker image
+    - name: Build Frontend Docker image
       run: |-
-        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$IMAGE:$GITHUB_SHA"
-        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$IMAGE:latest"
+        docker build \
+          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$FRONTEND_IMAGE:$GITHUB_SHA" \
+          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$FRONTEND_IMAGE:latest" \
+          frontend/
+
+    # Push the Backend Docker image to Google Artifact Registry
+    - name: Publish Backend Docker image
+      run: |-
+        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$BACKEND_IMAGE:$GITHUB_SHA"
+        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$BACKEND_IMAGE:latest"
+
+    # Push the Frontend Docker image to Google Artifact Registry
+    - name: Publish Frontend Docker image
+      run: |-
+        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$FRONTEND_IMAGE:$GITHUB_SHA"
+        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$FRONTEND_IMAGE:latest"
 
     # Set up kustomize
     - name: Set up Kustomize
@@ -84,21 +100,27 @@ jobs:
           --from-literal=placeholder="none" \
           --dry-run=client -o yaml | kubectl apply -f -
         
-        # Update cloud deployment with correct image
-        sed "s|gcr.io/PROJECT_ID/llm-chatbot-backend:latest|us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$IMAGE:$GITHUB_SHA|g" k8s/backend-deployment-cloud.yaml > /tmp/deployment.yaml
-        kubectl apply -f /tmp/deployment.yaml
+        # Update backend cloud deployment with correct image (using simple version for fast deployment)
+        sed "s|gcr.io/PROJECT_ID/llm-chatbot-backend:latest|us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$BACKEND_IMAGE:$GITHUB_SHA|g" k8s/backend-deployment-cloud-simple.yaml > /tmp/backend-deployment.yaml
+        kubectl apply -f /tmp/backend-deployment.yaml
+        
+        # Update frontend cloud deployment with correct image
+        sed "s|gcr.io/PROJECT_ID/llm-chatbot-frontend:latest|us-central1-docker.pkg.dev/$PROJECT_ID/llm-chatbot-repo/$FRONTEND_IMAGE:$GITHUB_SHA|g" k8s/frontend-deployment-cloud.yaml > /tmp/frontend-deployment.yaml
+        kubectl apply -f /tmp/frontend-deployment.yaml
         
         # Apply cloud-specific services and HPA
         kubectl apply -f k8s/backend-service-cloud.yaml
         kubectl apply -f k8s/hpa-cloud.yaml
+        kubectl apply -f k8s/frontend-hpa-cloud.yaml
         
-        # Verify deployment
-        kubectl rollout status deployment/$DEPLOYMENT_NAME
+        # Verify deployments with timeout
+        kubectl rollout status deployment/$BACKEND_DEPLOYMENT_NAME --timeout=300s
+        kubectl rollout status deployment/$FRONTEND_DEPLOYMENT_NAME --timeout=300s
         kubectl get services -o wide
         
-        # Get external IP
-        echo "Waiting for external IP..."
-        kubectl get service llm-chatbot-backend-service --watch --timeout=300s
+        # Get external IP for frontend (main user-facing service)
+        echo "Waiting for frontend external IP..."
+        kubectl get service llm-chatbot-frontend-service --watch --timeout=300s
 
   test-deployment:
     name: Test Deployment
@@ -164,4 +186,5 @@ jobs:
     - name: Rollback on failure
       run: |-
         gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
-        kubectl rollout undo deployment/$DEPLOYMENT_NAME || echo "No previous revision to rollback to" 
+        kubectl rollout undo deployment/$BACKEND_DEPLOYMENT_NAME || echo "No previous backend revision to rollback to"
+        kubectl rollout undo deployment/$FRONTEND_DEPLOYMENT_NAME || echo "No previous frontend revision to rollback to" 

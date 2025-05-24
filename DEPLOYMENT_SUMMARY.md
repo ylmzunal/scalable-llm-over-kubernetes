@@ -22,9 +22,11 @@ Frontend (React) → Backend (FastAPI) → Ollama → Local Models
 
 ### Cloud Deployment  
 ```
-Internet → GKE LoadBalancer → Pod[Backend + Ollama Sidecar] → Local Models
-                                      ↓
-                              Persistent Volume (Model Storage)
+Internet → GKE Ingress → Frontend LoadBalancer → Frontend Pods (nginx)
+                               ↓                        ↓
+                          Backend Service → Backend Pods[App + Ollama Sidecar] → Local Models
+                                                   ↓
+                                           Persistent Volume (Model Storage)
 ```
 
 ## 🤖 Available Models
@@ -92,9 +94,12 @@ git push origin main
 - **Storage**: 20 GB (for models)
 
 ### Cloud Deployment (GKE)
-- **Node Pool**: e2-standard-4 (4 vCPU, 16 GB RAM)
+- **Node Pool**: e2-standard-4 (4 vCPU, 16 GB RAM) 
+- **Frontend**: 2-10 replicas (lightweight nginx containers)
+- **Backend**: 1-3 replicas (with Ollama sidecar)
 - **Persistent Storage**: 20 GB for model storage
-- **Cost**: ~$100-150/month for continuous operation
+- **External Access**: LoadBalancer + Ingress with SSL
+- **Cost**: ~$120-180/month for continuous operation
 
 ## 🔐 Security & Privacy
 

@@ -66,7 +66,21 @@ const theme = createTheme({
   },
 });
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// Get API URL from runtime config or environment variable or default
+const getApiUrl = () => {
+  // Runtime configuration (injected by Docker)
+  if (window._env_ && window._env_.REACT_APP_API_URL) {
+    return window._env_.REACT_APP_API_URL;
+  }
+  // Build-time environment variable
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  // Default for local development
+  return 'http://localhost:8000';
+};
+
+const API_BASE_URL = getApiUrl();
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -108,7 +122,18 @@ function App() {
 
   const initializeWebSocket = () => {
     try {
-      const wsUrl = `ws://${window.location.hostname}:8000/ws/${conversationId}`;
+      // Get WebSocket URL from runtime config or build from current location
+      let wsUrl;
+      if (window._env_ && window._env_.REACT_APP_WS_URL) {
+        wsUrl = `${window._env_.REACT_APP_WS_URL}/${conversationId}`;
+      } else {
+        // Build WebSocket URL based on current page URL
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        wsUrl = `${protocol}//${host}/ws/${conversationId}`;
+      }
+      
+      console.log('Connecting to WebSocket:', wsUrl);
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
