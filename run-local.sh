@@ -44,10 +44,8 @@ export LLM_BASE_URL=http://localhost:11434
 
 # Start backend
 echo "🔧 Starting backend..."
-cd app
-python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload &
+PYTHONPATH=app uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
-cd ..
 
 # Install and start frontend
 echo "🎨 Starting frontend..."

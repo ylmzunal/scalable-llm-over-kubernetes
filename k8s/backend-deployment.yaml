@@ -36,8 +36,8 @@ spec:
         fsGroup: 1000
       containers:
       - name: backend
-        image: llm-chatbot-backend:v2.1
-        imagePullPolicy: IfNotPresent
+        image: llm-chatbot-backend:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 8000
           name: http
