@@ -1,0 +1,28 @@
+Scalable LLM Deployment on Kubernetes - Test Results
+Generated: Thu May 29 02:37:28 +03 2025
+=========================================
+Kubernetes control plane is running at https://127.0.0.1:52573
+CoreDNS is running at https://127.0.0.1:52573/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+NAME                                              READY   STATUS    RESTARTS   AGE     IP            NODE       NOMINATED NODE   READINESS GATES
+llm-chatbot-backend-tinyllama-9b485c7bd-qwd7z     2/2     Running   0          3m35s   10.244.0.45   minikube   <none>           <none>
+llm-chatbot-backend-tinyllama-9b485c7bd-r6t84     2/2     Running   0          3m35s   10.244.0.46   minikube   <none>           <none>
+llm-chatbot-frontend-tinyllama-798fb7785f-2mq6z   1/1     Running   0          3m30s   10.244.0.48   minikube   <none>           <none>
+llm-chatbot-frontend-tinyllama-798fb7785f-q4cgs   1/1     Running   0          3m30s   10.244.0.47   minikube   <none>           <none>
+NAME                                     TYPE       CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
+llm-chatbot-backend-service-tinyllama    NodePort   10.106.114.133   <none>        80:30093/TCP   3m35s
+llm-chatbot-frontend-service-tinyllama   NodePort   10.104.255.182   <none>        80:30094/TCP   3m30s
+NAME                                REFERENCE                                  TARGETS                                     MINPODS   MAXPODS   REPLICAS   AGE
+llm-chatbot-backend-tinyllama-hpa   Deployment/llm-chatbot-backend-tinyllama   cpu: <unknown>/70%, memory: <unknown>/80%   2         6         2          3m35s
+Infrastructure Configuration:
+- Backend Pods:        0
+- Frontend Pods:        0
+- Total Containers:        6
+- Auto-scaling: HPA enabled (2-6 replicas)
+
+Baseline Performance:
+- Health Check: ~0.1s average
+- Chat Response: 144.00s
+- Response Quality:      488 chars generated
+
